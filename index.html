@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="樺沢式ToDo">
+<title>樺沢式ToDoリスト</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f2f2f7;
+  --color-text: #1c1c1e;
+  --color-text-muted: #6c6c70;
+  --color-text-done: #aeaeb2;
+  --color-border: #c6c6c8;
+  --color-focus: #0066cc;
+  --color-accent: #0066cc;
+  --color-danger: #cc0000;
+  --color-success: #1a7f37;
+  --color-limit-over: #cc0000;
+  --radius: 10px;
+  --tap-min: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1c1c1e;
+    --color-bg-secondary: #2c2c2e;
+    --color-text: #f2f2f7;
+    --color-text-muted: #98989d;
+    --color-text-done: #636366;
+    --color-border: #38383a;
+    --color-focus: #4da6ff;
+    --color-accent: #4da6ff;
+    --color-danger: #ff6b6b;
+    --color-success: #4caf7d;
+    --color-limit-over: #ff6b6b;
+  }
+}
+
+body {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", "Yu Gothic", sans-serif;
+  font-size: 17px;
+  line-height: 1.8;
+  color: var(--color-text);
+  background: var(--color-bg-secondary);
+  margin: 0;
+  padding: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* スキップリンク */
+.skip-link {
+  position: absolute;
+  top: -999px;
+  left: 0;
+  background: var(--color-accent);
+  color: #fff;
+  padding: 10px 18px;
+  font-size: 16px;
+  text-decoration: none;
+  z-index: 9999;
+  border-radius: var(--radius);
+}
+.skip-link:focus { top: 8px; }
+
+/* ヘッダー */
+header {
+  background: var(--color-bg);
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+header h1 {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0 0 0.1rem;
+}
+.app-desc {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* メイン */
+main {
+  padding: 1rem 1rem 4rem;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* 日付・進捗 */
+#today-label {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--color-text-muted);
+  margin: 0 0 0.75rem;
+}
+
+/* ステータスアナウンス */
+#status-msg {
+  font-size: 15px;
+  color: var(--color-success);
+  min-height: 1.6em;
+  margin: 0 0 0.5rem;
+}
+
+/* 進捗カード */
+#progress-area {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-border);
+}
+#progress-area h2 {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 0 0 0.4rem;
+}
+#progress-text {
+  font-size: 15px;
+  margin: 0;
+  line-height: 1.9;
+}
+
+/* 一括操作ボタン */
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 1.25rem;
+}
+.action-buttons button {
+  min-height: var(--tap-min);
+  font-size: 15px;
+  padding: 0 16px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+}
+.action-buttons button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.action-buttons button:active {
+  background: var(--color-bg-secondary);
+}
+
+/* セクション */
+.todo-section {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 0.85rem 1rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+.section-header h2 {
+  font-size: 17px;
+  font-weight: bold;
+  margin: 0 0 0.2rem;
+  border-left: 4px solid var(--color-accent);
+  padding-left: 0.6rem;
+}
+.section-desc {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+  padding-left: 1rem;
+}
+
+/* タスク一覧 */
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: var(--tap-min);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 1rem;
+}
+.task-item:last-child { border-bottom: none; }
+
+.task-item input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  margin: 0 12px 0 0;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.task-label-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  cursor: pointer;
+}
+.task-text {
+  font-size: 17px;
+  line-height: 1.5;
+  padding: 8px 0;
+}
+.task-text.done {
+  text-decoration: line-through;
+  color: var(--color-text-done);
+}
+
+.del-btn {
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 0 10px;
+  background: none;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+.del-btn:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.del-btn:active {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.empty-msg {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  padding: 0.75rem 1rem;
+  margin: 0;
+}
+
+/* 追加フォーム */
+.add-area {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+.add-form {
+  display: flex;
+  gap: 8px;
+}
+.add-form input[type="text"] {
+  flex: 1;
+  min-height: var(--tap-min);
+  font-size: 17px;
+  font-family: inherit;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-appearance: none;
+}
+.add-form input[type="text"]::placeholder {
+  color: var(--color-text-muted);
+}
+.add-form input[type="text"]:focus {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+.add-form button {
+  min-height: var(--tap-min);
+  min-width: 70px;
+  font-size: 16px;
+  font-family: inherit;
+  font-weight: bold;
+  padding: 0 16px;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.add-form button:disabled {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+.add-form button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.add-form button:active:not(:disabled) {
+  opacity: 0.8;
+}
+
+.limit-note {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 6px 0 0;
+}
+.limit-over {
+  color: var(--color-limit-over);
+  font-weight: bold;
+}
+
+/* フッター */
+footer {
+  text-align: center;
+  padding: 1.5rem 1rem 2rem;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">メインコンテンツへスキップ</a>
+
+<header role="banner">
+  <h1>樺沢式ToDoリスト</h1>
+  <p class="app-desc">脳科学に基づくタスク管理 — 集中力×時間帯×遊び</p>
+</header>
+
+<main id="main-content" role="main">
+
+  <p id="today-label" aria-live="off"></p>
+  <p id="status-msg" role="status" aria-live="polite" aria-atomic="true"></p>
+
+  <!-- 進捗サマリー -->
+  <section aria-labelledby="progress-heading">
+    <div id="progress-area">
+      <h2 id="progress-heading">本日の進捗</h2>
+      <p id="progress-text">読み込み中...</p>
+    </div>
+  </section>
+
+  <!-- 一括操作 -->
+  <div class="action-buttons" role="group" aria-label="一括操作ボタン">
+    <button id="reset-btn" type="button">新しい一日を始める（リセット）</button>
+    <button id="check-all-btn" type="button">全て完了にする</button>
+    <button id="uncheck-all-btn" type="button">全て未完了に戻す</button>
+  </div>
+
+  <!-- AM -->
+  <section class="todo-section" aria-labelledby="am-heading">
+    <div class="section-header">
+      <h2 id="am-heading">午前（AM）集中力が必要な仕事</h2>
+      <p class="section-desc">脳のゴールデンタイム。最重要タスクを3つまで。</p>
+    </div>
+    <ul class="task-list" id="am-list" aria-label="午前のタスク一覧"></ul>
+    <div class="add-area">
+      <div class="add-form" role="group" aria-label="午前タスク追加フォーム">
+        <input type="text" id="am-input" placeholder="AMタスクを入力" maxlength="80"
+               aria-label="午前のタスク名を入力" aria-describedby="am-limit">
+        <button type="button" id="am-add-btn" aria-label="午前のタスクを追加">追加</button>
+      </div>
+      <p class="limit-note" id="am-limit" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- PM -->
+  <section class="todo-section" aria-labelledby="pm-heading">
+    <div class="section-header">
+      <h2 id="pm-heading">午後（PM）集中力があまりいらない仕事</h2>
+      <p class="section-desc">連絡・調整・ルーティン作業など。3つまで。</p>
+    </div>
+    <ul class="task-list" id="pm-list" aria-label="午後のタスク一覧"></ul>
+    <div class="add-area">
+      <div class="add-form" role="group" aria-label="午後タスク追加フォーム">
+        <input type="text" id="pm-input" placeholder="PMタスクを入力" maxlength="80"
+               aria-label="午後のタスク名を入力" aria-describedby="pm-limit">
+        <button type="button" id="pm-add-btn" aria-label="午後のタスクを追加">追加</button>
+      </div>
+      <p class="limit-note" id="pm-limit" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- 遊び -->
+  <section class="todo-section" aria-labelledby="play-heading">
+    <div class="section-header">
+      <h2 id="play-heading">遊び・余暇　ストレス解消のToDo</h2>
+      <p class="section-desc">書くだけで実現率3倍。3つまで。</p>
+    </div>
+    <ul class="task-list" id="play-list" aria-label="遊びのタスク一覧"></ul>
+    <div class="add-area">
+      <div class="add-form" role="group" aria-label="遊びタスク追加フォーム">
+        <input type="text" id="play-input" placeholder="遊び・余暇を入力" maxlength="80"
+               aria-label="遊びのタスク名を入力" aria-describedby="play-limit">
+        <button type="button" id="play-add-btn" aria-label="遊びのタスクを追加">追加</button>
+      </div>
+      <p class="limit-note" id="play-limit" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- 持ち越し -->
+  <section class="todo-section" aria-labelledby="carry-heading">
+    <div class="section-header">
+      <h2 id="carry-heading">持ち越しタスク（翌日以降）</h2>
+      <p class="section-desc">今日できなかったこと・将来やること。件数制限なし。</p>
+    </div>
+    <ul class="task-list" id="carry-list" aria-label="持ち越しタスク一覧"></ul>
+    <div class="add-area">
+      <div class="add-form" role="group" aria-label="持ち越しタスク追加フォーム">
+        <input type="text" id="carry-input" placeholder="持ち越しタスクを入力" maxlength="80"
+               aria-label="持ち越しタスク名を入力">
+        <button type="button" id="carry-add-btn" aria-label="持ち越しタスクを追加">追加</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer role="contentinfo">
+  <p>樺沢式ToDoリスト 視覚障害者対応版<br>
+  データはこのブラウザのみに保存されます</p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'kabasawa_todo_v3';
+  var LIMIT = 3;
+  var ALL_SECTIONS = ['am', 'pm', 'play', 'carry'];
+  var LIMITED = ['am', 'pm', 'play'];
+  var SECTION_NAMES = { am: '午前', pm: '午後', play: '遊び・余暇', carry: '持ち越し' };
+
+  /* ── ストレージ ── */
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (!d) d = {};
+      ALL_SECTIONS.forEach(function (s) { if (!Array.isArray(d[s])) d[s] = []; });
+      return d;
+    } catch (e) {
+      var d2 = {};
+      ALL_SECTIONS.forEach(function (s) { d2[s] = []; });
+      return d2;
+    }
+  }
+
+  function save(data) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+  }
+
+  /* ── アナウンス ── */
+  function announce(msg) {
+    var el = document.getElementById('status-msg');
+    el.textContent = '';
+    // iOS VoiceOver は少し長めのディレイが確実
+    setTimeout(function () { el.textContent = msg; }, 100);
+  }
+
+  /* ── 進捗更新 ── */
+  function updateProgress(data) {
+    var lines = LIMITED.map(function (s) {
+      var done = data[s].filter(function (t) { return t.done; }).length;
+      return SECTION_NAMES[s] + ' ' + done + '件完了 / ' + data[s].length + '件';
+    });
+    if (data.carry.length > 0) {
+      var cd = data.carry.filter(function (t) { return t.done; }).length;
+      lines.push('持ち越し ' + cd + '件完了 / ' + data.carry.length + '件');
+    }
+    document.getElementById('progress-text').textContent = lines.join('\n');
+  }
+
+  /* ── 上限ノート ── */
+  function updateLimitNote(section, list) {
+    var el = document.getElementById(section + '-limit');
+    if (!el) return;
+    if (list.length >= LIMIT) {
+      el.textContent = '上限（3つ）に達しています。';
+      el.className = 'limit-note limit-over';
+    } else {
+      el.textContent = 'あと ' + (LIMIT - list.length) + ' 件追加できます。';
+      el.className = 'limit-note';
+    }
+  }
+
+  /* ── セクション描画 ── */
+  function renderSection(section, tasks) {
+    var container = document.getElementById(section + '-list');
+    container.innerHTML = '';
+
+    if (tasks.length === 0) {
+      var li = document.createElement('li');
+      li.className = 'empty-msg';
+      // VoiceOver がリストとして読むよう role 付与
+      li.setAttribute('role', 'listitem');
+      li.textContent = 'タスクはまだありません。';
+      container.appendChild(li);
+    } else {
+      tasks.forEach(function (task, idx) {
+        var li = document.createElement('li');
+        li.className = 'task-item';
+
+        var cbId = section + '-cb-' + idx;
+
+        /* チェックボックス */
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = cbId;
+        cb.checked = task.done;
+        // VoiceOver は aria-label でテキストと状態を読む
+        cb.setAttribute('aria-label',
+          (task.done ? '完了済み: ' : '未完了: ') + task.text);
+        cb.addEventListener('change', (function (s, i, t) {
+          return function () {
+            var data = load();
+            data[s][i].done = this.checked;
+            save(data);
+            renderAll(data);
+            announce(this.checked
+              ? t + ' を完了しました。'
+              : t + ' を未完了に戻しました。');
+          };
+        })(section, idx, task.text));
+
+        /* ラベル（タップ領域拡大） */
+        var labelWrap = document.createElement('label');
+        labelWrap.className = 'task-label-wrap';
+        labelWrap.htmlFor = cbId;
+        // VoiceOver のダブルタップ誤爆を防ぐため aria-hidden
+        labelWrap.setAttribute('aria-hidden', 'true');
+
+        var span = document.createElement('span');
+        span.className = 'task-text' + (task.done ? ' done' : '');
+        span.textContent = task.text;
+        labelWrap.appendChild(span);
+
+        /* 削除ボタン */
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'del-btn';
+        delBtn.textContent = '削除';
+        delBtn.setAttribute('aria-label', task.text + ' を削除');
+        delBtn.addEventListener('click', (function (s, i, t) {
+          return function () {
+            var data = load();
+            data[s].splice(i, 1);
+            save(data);
+            renderAll(data);
+            announce(t + ' を削除しました。');
+          };
+        })(section, idx, task.text));
+
+        li.appendChild(cb);
+        li.appendChild(labelWrap);
+        li.appendChild(delBtn);
+        container.appendChild(li);
+      });
+    }
+
+    /* 追加ボタン制御 */
+    if (LIMITED.indexOf(section) !== -1) {
+      updateLimitNote(section, tasks);
+      var addBtn = document.getElementById(section + '-add-btn');
+      addBtn.disabled = tasks.length >= LIMIT;
+      addBtn.setAttribute('aria-disabled', tasks.length >= LIMIT ? 'true' : 'false');
+    }
+  }
+
+  /* ── 全体再描画 ── */
+  function renderAll(data) {
+    ALL_SECTIONS.forEach(function (s) { renderSection(s, data[s]); });
+    updateProgress(data);
+    document.getElementById('today-label').textContent =
+      '本日：' + new Date().toLocaleDateString('ja-JP', {
+        year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+      });
+  }
+
+  /* ── タスク追加 ── */
+  function addTask(section) {
+    var input = document.getElementById(section + '-input');
+    var text = input.value.trim();
+    if (!text) {
+      announce('タスク名を入力してください。');
+      input.focus();
+      return;
+    }
+    var data = load();
+    if (LIMITED.indexOf(section) !== -1 && data[section].length >= LIMIT) {
+      announce(SECTION_NAMES[section] + 'は上限（3つ）に達しています。');
+      return;
+    }
+    data[section].push({ text: text, done: false });
+    save(data);
+    input.value = '';
+    renderAll(data);
+    announce(text + ' を' + SECTION_NAMES[section] + 'に追加しました。');
+    // iOS Safari: フォーカスをボタンではなく入力欄に戻す
+    setTimeout(function () { input.focus(); }, 150);
+  }
+
+  /* ── イベント設定 ── */
+  ALL_SECTIONS.forEach(function (s) {
+    document.getElementById(s + '-add-btn')
+      .addEventListener('click', function () { addTask(s); });
+    document.getElementById(s + '-input')
+      .addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); addTask(s); }
+      });
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', function () {
+    var data = load();
+    var undone = [];
+    LIMITED.forEach(function (s) {
+      data[s].filter(function (t) { return !t.done; })
+        .forEach(function (t) { undone.push({ text: t.text, done: false }); });
+    });
+    undone.forEach(function (t) { data.carry.push(t); });
+    LIMITED.forEach(function (s) { data[s] = []; });
+    save(data);
+    renderAll(data);
+    var msg = 'リセットしました。新しい一日を始めましょう。';
+    if (undone.length > 0) msg += ' 未完了の ' + undone.length + ' 件を持ち越しに移動しました。';
+    announce(msg);
+  });
+
+  document.getElementById('check-all-btn').addEventListener('click', function () {
+    var data = load();
+    ALL_SECTIONS.forEach(function (s) {
+      data[s].forEach(function (t) { t.done = true; });
+    });
+    save(data);
+    renderAll(data);
+    announce('全てのタスクを完了にしました。');
+  });
+
+  document.getElementById('uncheck-all-btn').addEventListener('click', function () {
+    var data = load();
+    ALL_SECTIONS.forEach(function (s) {
+      data[s].forEach(function (t) { t.done = false; });
+    });
+    save(data);
+    renderAll(data);
+    announce('全てのタスクを未完了に戻しました。');
+  });
+
+  /* ── 初期描画 ── */
+  renderAll(load());
+
+})();
+</script>
+</body>
+</html>
