@@ -267,6 +267,39 @@ main {
   margin: 0;
 }
 
+/* 持ち越し→本日への移動ボタン群 */
+.move-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+.move-btn {
+  min-height: 36px;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 0 10px;
+  background: none;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.move-btn:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.move-btn:active {
+  background: var(--color-accent);
+  color: #fff;
+}
+.move-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* 追加フォーム */
 .add-area {
   padding: 0.75rem 1rem;
@@ -425,7 +458,7 @@ footer {
   <section class="todo-section" aria-labelledby="carry-heading">
     <div class="section-header">
       <h2 id="carry-heading">持ち越しタスク（翌日以降）</h2>
-      <p class="section-desc">今日できなかったこと・将来やること。件数制限なし。</p>
+      <p class="section-desc">今日できなかったこと・将来やること。件数制限なし。各タスクの「移動」ボタンで本日のAM・PM・遊びに移せます。</p>
     </div>
     <ul class="task-list" id="carry-list" aria-label="持ち越しタスク一覧"></ul>
     <div class="add-area">
@@ -448,7 +481,7 @@ footer {
 (function () {
   'use strict';
 
-  var STORAGE_KEY = 'kabasawa_todo_v3';
+  var STORAGE_KEY = 'kabasawa_todo_v4';
   var LIMIT = 3;
   var ALL_SECTIONS = ['am', 'pm', 'play', 'carry'];
   var LIMITED = ['am', 'pm', 'play'];
@@ -575,6 +608,53 @@ footer {
 
         li.appendChild(cb);
         li.appendChild(labelWrap);
+
+        /* 持ち越しセクションのみ：移動ボタン群を追加 */
+        if (section === 'carry') {
+          var moveWrap = document.createElement('div');
+          moveWrap.className = 'move-btns';
+
+          var moveTargets = [
+            { key: 'am',   label: 'AMへ' },
+            { key: 'pm',   label: 'PMへ' },
+            { key: 'play', label: '遊びへ' }
+          ];
+
+          moveTargets.forEach(function (target) {
+            var data0 = load();
+            var isFull = data0[target.key].length >= LIMIT;
+
+            var mBtn = document.createElement('button');
+            mBtn.type = 'button';
+            mBtn.className = 'move-btn';
+            mBtn.textContent = target.label;
+            mBtn.disabled = isFull;
+            mBtn.setAttribute('aria-label',
+              task.text + ' を' + SECTION_NAMES[target.key] + 'に移動' +
+              (isFull ? '（上限に達しているため移動できません）' : ''));
+
+            mBtn.addEventListener('click', (function (fromIdx, toKey, taskText) {
+              return function () {
+                var data = load();
+                if (data[toKey].length >= LIMIT) {
+                  announce(SECTION_NAMES[toKey] + 'は上限（3つ）に達しています。移動できません。');
+                  return;
+                }
+                /* 持ち越しから削除して移動先へ追加 */
+                data.carry.splice(fromIdx, 1);
+                data[toKey].push({ text: taskText, done: false });
+                save(data);
+                renderAll(data);
+                announce(taskText + ' を' + SECTION_NAMES[toKey] + 'に移動しました。');
+              };
+            })(idx, target.key, task.text));
+
+            moveWrap.appendChild(mBtn);
+          });
+
+          li.appendChild(moveWrap);
+        }
+
         li.appendChild(delBtn);
         container.appendChild(li);
       });
